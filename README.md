@@ -422,6 +422,14 @@ Here, the `greeter` interface has been removed; in its stead, the `printWelcome`
 
 ### Composition
 
+In Go there is no inheritance. Instead, structures embed other structures; behavior is _composed_, rather than extended/overridden; in other words behavior is additive, not substitutive (no Java `@Override`).
+
+Let's introduce composition in the snippet we just used in the [Interfaces](#interfaces) section:
+
+```go
+
+```
+
 ## Concurrency
 
 ## Style quirks
