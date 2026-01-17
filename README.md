@@ -146,3 +146,70 @@ Finally, the Go CLI features built-in code quality tools; most notably a standar
 - `go fmt` - Automatically formats Go code to the official style standard
 - `go vet` - Examines code for common mistakes and suspicious constructs
 - `go fix` - Updates code to use new APIs after Go version upgrades
+
+## Coding patterns
+
+Let's get to the fun part: how do we actually code in Go?
+
+### Fundamentals
+
+The main syntax elements I encountered are variables (`var`), functions (`func`), types (`type`), structures (`struct`) and interfaces (`interface`).
+
+**Variables** and **functions** are quite self-explanatory (although there's a couple of syntax tricks that are worth specifying later in this section).
+
+A **type** identifies a named type entity, defined from either an underlying type, a structure (see below) or an interface (also see below), and optionally equipped with a set of methods. There are actually some additional constructs that a type can be defined from, but we'll ignore them for now.
+
+**Structures** are primarily meant as data carriers; behavior (i.e. methods) can be attached to them, but it's not part of the definition.
+
+**Interfaces** on the other hand _are_ behavioral contracts i.e. they define the signatures of the methods that a type needs to implement in order to qualify as an implementation of the interface.
+
+```go
+package main
+
+import (
+	"fmt"
+	"strconv"
+)
+
+// type based on a primitive type
+type nickname string
+
+// type based on a structure
+// the structure defines what kind of data
+// will be carried around
+type User struct {
+	ID   int
+	Name string
+	Nick nickname
+}
+
+// Describer is a behavioral contract
+// the interface 
+type Describer interface {
+	Describe() string
+}
+
+// Method attaches behavior to the User type.
+func (u User) Describe() string {
+	return u.Name + " (" + string(u.Nick) + " for friends)"
+}
+
+// Function depends on behavior, not concrete data.
+func printDescription(d Describer) {
+	fmt.Println(d.Describe())
+}
+
+func main() {
+	u := User{ID: 1, Name: "John", Nick: "Johnny"}
+	printDescription(u)
+}
+```
+
+`TODO`:
+
+- fundamental bits: functions, variables, structs (only a mention to channels and mutex - or maybe not even that)
+- `main` function in the `main` package
+- pointers are back
+- interfaces: definition VS implementation
+- implicit implementation of interfaces
+- composition over inheritance
