@@ -6,8 +6,7 @@ This repository hosts the notes and snippets I wrote while familiarizing with Go
 
 - [Abstract](#abstract)
 - [Project Structure](#project-structure)
-- [CLI features](#cli-features)
-- [Language features](#language-features)
+- [Features](#features)
 - [Coding patterns](#coding-patterns)
 
 ## Abstract
@@ -112,7 +111,7 @@ type Calculator struct {
 }
 ```
 
-## CLI features
+## Features
 
 As I mentioned in the [abstract](#abstract), the Go runtime comes with a full set of standard tools that allow a complete developmente experience right off the bat, with little need of external dependencies.
 
