@@ -8,6 +8,8 @@ This repository hosts the notes and snippets I wrote while familiarizing with Go
 - [Project Structure](#project-structure)
 - [Features](#features)
 - [Coding patterns](#coding-patterns)
+- [Concurrency](#concurrency)
+- [Style quirks](#style-quirks)
 
 ## Abstract
 
@@ -322,9 +324,104 @@ func (u *User) Describe() string {
 
 In this case, the `Describe` function has access to a _pointer_ (the address of the value of the instance)! for this particular implementation it doesn't make much of a difference, but if the implementation included mutations then it would make _a lot_ of difference: using a value receiver (i.e. `(User u)`) would not propagate mutations, using a pointer receiver would!
 
-`TODO`:
+### Interfaces
 
-- interfaces: definition VS implementation
-- implicit implementation of interfaces
-- composition over inheritance
-- (only a mention to channels and mutex - or maybe not even that)
+As stated above, interfaces in Go define the signatures of the methods that a type needs to implement in order to qualify as an implementation of the interface.
+
+For example, types that wish to qualify as implementing the `Describer` interface we used above
+
+```go
+type Describer interface {
+	Describe() string
+}
+```
+
+need to implement a method named `Describe`, that takes no input arguments and returns a `string`.
+
+In Go, functions tyipically accept interfaces and return structures. In fact, one of the main roles of interfaces in Go is decoupling functions from specific implementations.
+
+Consider the following snippet:
+
+```go
+package main
+
+import "fmt"
+
+type greeter interface {
+	greet(name string) string
+}
+
+type englishGreeter struct{}
+
+func (g englishGreeter) greet(name string) string {
+	return "Hello, " + name
+}
+
+type italianGreeter struct{}
+
+func (g italianGreeter) greet(name string) string {
+	return "Ciao, " + name
+}
+
+func printWelcome(g greeter, name string) {
+	fmt.Println(g.greet(name))
+}
+
+func main() {
+	var dummyName string = "John"
+	//var g = englishGreeter{}
+	var g = italianGreeter{}
+
+	printWelcome(g, dummyName)
+}
+```
+
+- The `greeter` interface describes the expected _behavior_: concrete types shall implement a `greet` method accepting a `string` and returning a `string`.
+- The `printWelcome` function accepts any concrete type implementing the `greeter` interface, it "does not know" which implementation it will work with.
+- The `englishGreeter` and `italianGreeter` functions both implement the `greeter` interface (by defining a suitable `greet` method).
+- The `main` function can invoke the `printWelcome` function using either the `englishGreeter` or the `italianGreeter` implementation interchangeably.
+
+There are two things to highlight here:
+
+1. The `englishGreeter` and `italianGreeter` functions implement the `greeter` interface _**implicitly**_: there is no keyword or explicit reference indicating that they implement it; they implement it by adhering to its contract.
+2. The `greeter` interface is actually useless here, and introduced for educational purposes; a more idiomatic form would be the following:
+
+```go
+package main
+
+import "fmt"
+
+type englishGreeter struct{}
+
+func (g englishGreeter) greet(name string) string {
+	return "Hello, " + name
+}
+
+type italianGreeter struct{}
+
+func (g italianGreeter) greet(name string) string {
+	return "Ciao, " + name
+}
+
+func printWelcome(g interface {
+	greet(string) string
+}, name string) {
+	fmt.Println(g.greet(name))
+}
+
+func main() {
+	var dummyName string = "John"
+	//var g = englishGreeter{}
+	var g = italianGreeter{}
+
+	printWelcome(g, dummyName)
+}
+```
+
+Here, the `greeter` interface has been removed; in its stead, the `printWelcome` function uses an inline, anonymous definition. This for underlines a key design difference between Go and Java: in Go, interfaces are discovered bottom-up, not designed top-down. In other words, in Go interfaces are owned by the consumer!
+
+### Composition
+
+## Concurrency
+
+## Style quirks
