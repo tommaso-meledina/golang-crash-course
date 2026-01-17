@@ -159,7 +159,7 @@ The main syntax elements I encountered are variables (`var`), functions (`func`)
 
 A **type** identifies a named type entity, defined from either an underlying type, a structure (see below) or an interface (also see below), and optionally equipped with a set of methods. There are actually some additional constructs that a type can be defined from, but we'll ignore them for now.
 
-**Structures** are primarily meant as data carriers; behavior (i.e. methods) can be attached to them, but it's not part of the definition.
+**Structures** are primarily meant as data transfer objects; behavior (i.e. methods) can be attached to them, but it's not part of the definition.
 
 **Interfaces** on the other hand _are_ behavioral contracts i.e. they define the signatures of the methods that a type needs to implement in order to qualify as an implementation of the interface.
 
@@ -200,16 +200,131 @@ func printDescription(d Describer) {
 }
 
 func main() {
-	u := User{ID: 1, Name: "John", Nick: "Johnny"}
+	var u = User{ID: 1, Name: "John", Nick: "Johnny"}
 	printDescription(u)
 }
 ```
 
+Notice the syntax of function `func (u User) Describe() string`, it means:
+
+- this function can be referenced outside its package (it's named `Describe` with a capital `D`)
+- this function doesn't expect any input, since the input bit is empty `Describe()`
+- this function returns a value of type `string` - keep in mind that functions in Go may return more than one value, e.g. we could have `Describe() (string, int)`
+- this function is a method os the `User` type (the `(u User)` bit is called "receiver")
+
+The above snippet, other than demonstrating the fundamental concepts I listed, is actually a working Go script: running the `go run` command on it will output `John(Johnny for friends)`.
+
+Notice how the package is named `main`, and there's also a `main` function at the end of the file. "main" is a special name, that marks the main package of the application; within the `main` package, Go will expect one of the files to contain a `main` function: that's the execution entry point.
+
+### Pointers
+
+#### Refresher on pointers
+
+Go makes aliasing and mutation explicit using pointers; as a consequence, I had to refresh my understanding of them. Consider the following snippet:
+
+```go
+package main
+
+import "fmt"
+
+func changeByValue(v int) {
+	v += 1
+}
+
+func changeByPointer(v *int) {
+	*v += 1
+}
+
+func main() {
+	var x int = 1
+	fmt.Println("-----\nDEMO STARTS")
+	fmt.Println("x is", x)
+	var p *int = &x
+	fmt.Println("p is", p, "*p is", *p)
+
+	fmt.Println("-----")
+	x += 1
+	fmt.Println("value of x has been increased in the main function:\nx is now", x, "\np is now", p, "\n*p is now", *p)
+
+	fmt.Println("-----")
+	changeByValue(x)
+	fmt.Println("changeByValue func invoked:\nx is now", x, "\np is now", p, "\n*p is now", *p)
+
+	fmt.Println("-----")
+	changeByPointer(p)
+	fmt.Println("changeByPointer func invoked:\nx is now", x, "\np is now", p, "\n*p is now", *p)
+}
+```
+
+Let's go over the syntax first: while writing `var x int = 1` obviously tells the compiler "I am creating a variable of type `int` having `1` as value", writing `var p *int = &x` means "I am creating _a pointer to the value of that variable, of type int_ (i.e. `*int`); the value of the pointer is `&x` (i.e. _the pointer_ to `x`, or more precisely _the address_ of `x`)". Furthermore, if `p` is a pointer to `x`, then the value of `x` can be accessed from `p` through the syntax `*p`; the syntax `*x` on the other hand makes no sense (`x` is not a pointer).
+
+In other words:
+
+- `*int` represents the type of a pointer that points to the address of a value having type `int`; if we defined a custom type e.g. `type nickname string`, then a pointer to the address of a variable of such a type would have type `*nickname`.
+- `&x` represents the address of `x`; if `x` is of type `mytype`, then `&x` is of type `*mytype`.
+- `*p` represents the value that `p` points to.
+
+
+Let's skip to how pointers behave. Running the above script returns the following output:
+
+```text
+-----
+DEMO STARTS
+x is 1
+p is 0x1400010e040 *p is 1
+-----
+value of x has been increased in the main function:
+x is now 2 
+p is now 0x1400010e040 
+*p is now 2
+-----
+changeByValue func invoked:
+x is now 2 
+p is now 0x1400010e040 
+*p is now 2
+-----
+changeByPointer func invoked:
+x is now 3 
+p is now 0x1400010e040 
+*p is now 3
+```
+
+First, we store the _value_ of `x` in the variable `x`, and a _pointer_ to `x` in the variable `p`.
+Before any manipulation, the value of `x` is `1`; the value of `p` is _an address_; the value of `x` obtained through `*p` is also `1`.
+
+Then we increase `x` by `1`, acting directly on `x` itself (`x+=1`). The value of `x` changed, hence printing `x` now yields `2`; printing `*p` (the value of `x` through its pointer `p`) also yields `2`; the address to `x` is of course unchanged.
+
+Then we pass `x` to a function that receives it and also increases it by `1`, and we print everything again; we might expect the value of `x` to have changed, but that is not the case. That's because the function `changeValue` works on a mere copy of the value of `x`, and whatever modifications it makes to it are not reflected to the "original x". As a consequence, `x` is still `2`; `*p` is also `2`; the address stays unchanged.
+
+Finally, we pass _a pointer to `x`_ to another function, that modifies its value _through the pointer_ (i.e. `*v += 1`); this time, the change _is_ reflected to `x` (the function can reach back to it, through the pointer).
+
+#### Usage of pointers
+
+Why are pointers back, and how are they used in Go?
+
+As far as I understand, the purpose is to force developers to handle values and references consciously.
+
+One instance in which I encountered the usage of pointers is in receivers, i.e. when equipping types with methods. Let's consider the first script we used in this article; in there, we write the following:
+
+```go
+func (u User) Describe() string {
+	return u.Name + " (" + string(u.Nick) + " for friends)"
+}
+```
+
+Which equips the type `User` with a `Describe` function, which has access to the value of the instance. We may have used a different syntax:
+
+```go
+func (u *User) Describe() string {
+	return u.Name + " (" + string(u.Nick) + " for friends)"
+}
+```
+
+In this case, the `Describe` function has access to a _pointer_ (the address of the value of the instance)! for this particular implementation it doesn't make much of a difference, but if the implementation included mutations then it would make _a lot_ of difference: using a value receiver (i.e. `(User u)`) would not propagate mutations, using a pointer receiver would!
+
 `TODO`:
 
-- fundamental bits: functions, variables, structs (only a mention to channels and mutex - or maybe not even that)
-- `main` function in the `main` package
-- pointers are back
 - interfaces: definition VS implementation
 - implicit implementation of interfaces
 - composition over inheritance
+- (only a mention to channels and mutex - or maybe not even that)
