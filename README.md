@@ -6,14 +6,15 @@ This repository hosts the notes and snippets I wrote while familiarizing with Go
 
 - [Abstract](#abstract)
 - [Project Structure](#project-structure)
-- [Features](#features)
+- [CLI features](#cli-features)
+- [Language features](#language-features)
 - [Coding patterns](#coding-patterns)
 
 ## Abstract
 
-Compared to Java, Go feels more "essential". Its coding patterns are more direct; simpler, in a way. It deliberately lacks the complexity that allows a Java developer to represent a rich domain model through hierarchically-organized classes, exchanging it for coding patterns that aim to make every snippet make sense, often even if read in isolation. Its coding style feels a bit like that of a scripting language - which we may argue that Go is.
+Compared to Java, Go feels more "essential". Its coding patterns are more direct; simpler, in a way. It deliberately lacks the complexity that allows a Java developer to represent a rich domain model through hierarchically-organized classes, exchanging it for coding patterns that aim to make every snippet make sense, often even if read in isolation. Its coding style feels a bit like that of a scripting language - which we may argue that Go is, at heart.
 
-While some of the most acclaimed features in Java development come from external libraries, and the presence of a myriad of alternative third-party options and tools is considered among the strengths of the Java ecosystem, Go is tightly self-complete and self-consistent: installing the Go runtime also brings the full set of tools and libraries that developers need in order to ship features, including: testing tools, performance testing tools, formatting/styling tools, HTTP libraries, filesystem libraries and many more, most notably the libraries supporting concurrency.
+While some of the most acclaimed features in Java development come from external libraries, and the presence of a myriad of alternative third-party options and tools is considered among the strengths of the Java ecosystem, Go is tightly self-complete and self-consistent: installing the Go runtime also brings the full set of tools and libraries that developers need in order to ship features, including: testing tools, performance testing tools, formatting/styling tools, HTTP libraries, filesystem libraries and many more, most notably the top-notch libraries supporting concurrency. A select few external libraries are commonly used, but the amount of external dependencies involved is orders of magnitude less than what I'm used to in Java.
 
 ## Project structure
 
@@ -56,7 +57,7 @@ myproject/
 
 In addition to the simplified project structure presented in the past section, Go also has a handful of additional conventions.
 
-`internal/` directory: code in internal/ can only be imported by code in the parent tree; it enforces true privacy beyond package-level visibility.
+`internal/` directory: code in `internal/` can only be imported by code in the parent tree; it enforces true privacy beyond package-level visibility.
 
 ```text
 myapp/
@@ -110,3 +111,39 @@ type Calculator struct {
 	version int    // private field
 }
 ```
+
+## CLI features
+
+As I mentioned in the [abstract](#abstract), the Go runtime comes with a full set of standard tools that allow a complete developmente experience right off the bat, with little need of external dependencies.
+
+### Package management
+
+First of all, the `go` CLI completely covers all needs in terms of package management.
+
+In fact, the usual `build`, `install`, `test`, `run` commands, plus the commands for listing and fetching external modules (for which I'm used to rely on a third-party pakcage manager such as Maven or Gradle) are standard features of the `go` CLI:
+
+- `go build` - Compiles packages and dependencies into executable binaries
+- `go clean` - Removes build artifacts and cached files
+- `go doc` - Shows documentation for packages, functions, and symbols
+- `go get` - Downloads and installs packages and dependencies
+- `go install` - Compiles and installs packages/binaries to `$GOPATH/bin`
+- `go list` - Lists packages and their dependencies
+- `go mod` - Manages module dependencies (init, tidy, download, vendor, etc.)
+- `go run` - Compiles and runs Go programs in one step (useful for development)
+- `go test` - Runs tests and benchmarks for packages
+
+### Additional testing tools
+
+But the Go CLI goes further than the usual `go test` I would have expected; through the `go tool` command, it brings built-in coverage analysis, profiling and performance analysis:
+
+- `go tool pprof` - Analyzes CPU and memory profiling data for performance optimization
+- `go tool cover` - Analyzes and visualizes code coverage from tests
+- `go tool trace` - Visualizes execution traces for concurrency and performance
+
+### Code quality tools
+
+Finally, the Go CLI features built-in code quality tools; most notably a standard, opinionated formatter (no more style wars!):
+
+- `go fmt` - Automatically formats Go code to the official style standard
+- `go vet` - Examines code for common mistakes and suspicious constructs
+- `go fix` - Updates code to use new APIs after Go version upgrades
