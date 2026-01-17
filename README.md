@@ -10,6 +10,8 @@ While some of the most acclaimed features in Java development come from external
 
 ## Project structure
 
+### Modules and packages
+
 A Go application is typically represented by a **module** and organized over **packages**.
 
 **Packages** are Go's basic unit of code organization; every Go file belongs to a package. Practically speaking, a package is a directory containing `.go` files with the same `package` declaration.
@@ -41,4 +43,63 @@ myproject/
       ├── date_utils_test.go
       ├── string_utils.go
       └── string_utils_test.go
+```
+
+### Other conventions
+
+In addition to the simplified project structure presented in the past section, Go also has a handful of additional conventions.
+
+`internal/` directory: code in internal/ can only be imported by code in the parent tree; it enforces true privacy beyond package-level visibility.
+
+```text
+myapp/
+  ├── go.mod
+  ├── main.go                    Can import internal/
+  ├── internal/
+  │   └── auth/
+  │       └── token.go
+  └── handlers/
+      └── user.go                Can import internal/
+
+otherproject/
+  └── main.go                    Cannot import myapp/internal/
+```
+
+`cmd/` directory: for multiple binaries
+
+```text
+myproject/
+  ├── cmd/
+  │   ├── server/
+  │   │   └── main.go           (builds "server" binary)
+  │   └── worker/
+  │       └── main.go           (builds "worker" binary)
+```
+
+`vendor/` directory: stores copies of dependencies (created by `go mod vendor`); Go tools recognize it automatically.
+
+`testdata`: for text fixtures; ignored by go build, used for test data files.
+
+### Capitalization and visibility
+
+Seemingly just another style convention, capitalization in the names of objects actually drives visibility within the module: lowercase elements are package-private, uppercase elements are public.
+
+```go
+package mathutils
+
+// Public function - accessible from other packages
+func Add(a, b int) int {
+	return a + b
+}
+
+// private function - only accessible within mathutils package
+func multiply(a, b int) int {
+	return a * b
+}
+
+// Public struct with mixed visibility fields
+type Calculator struct {
+	Name    string // Public field
+	version int    // private field
+}
 ```
