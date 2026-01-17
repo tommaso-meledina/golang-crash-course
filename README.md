@@ -2,6 +2,13 @@
 
 This repository hosts the notes and snippets I wrote while familiarizing with Golang, coming from a Java background.
 
+## Index
+
+- [Abstract](#abstract)
+- [Project Structure](#project-structure)
+- [Features](#features)
+- [Coding patterns](#coding-patterns)
+
 ## Abstract
 
 Compared to Java, Go feels more "essential". Its coding patterns are more direct; simpler, in a way. It deliberately lacks the complexity that allows a Java developer to represent a rich domain model through hierarchically-organized classes, exchanging it for coding patterns that aim to make every snippet make sense, often even if read in isolation. Its coding style feels a bit like that of a scripting language - which we may argue that Go is.
