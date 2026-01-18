@@ -492,6 +492,10 @@ In this version:
 - we equipped the `composedGreeter` structure with the `greet` method expected by the `greeter` interface
 - finally, in the `main` function, we executed the new `composedGreeter` rather than the "old" `englishGreeter` or `italianGreeter` options - notice how the `printWelcome` function doesn't care one bit, that's what we mean when we say that the purpose of interfaces is to decouple consumers from specific implementations
 
+### Error handling
+
+Can't ignore this either!
+
 ## Concurrency
 
 Concurrency is one of the areas where Golang really shines. It's native API allows to write elegant yet simple and efficient concurrency logic.
@@ -512,14 +516,15 @@ import (
 	"time"
 )
 
-func slowFunction() {
-	println("slow function starts")
+func slowFunction(id string) {
+	println("slow function " + id + " starts")
 	time.Sleep(5 * time.Second)
-	println("slow function ends")
+	println("slow function " + id + " ends")
 }
+
 func main() {
 	println("Invoking slow function")
-	slowFunction()
+	slowFunction("1")
 	println("After slow function invocation")
 }
 ```
@@ -528,8 +533,8 @@ Here `slowFunction` is blocking, in fact the output of this script is the follow
 
 ```text
 Invoking slow function
-slow function starts
-slow function ends
+slow function 1 starts
+slow function 1 ends
 After slow function invocation
 ```
 
@@ -539,7 +544,7 @@ But we just need to use the `go` keyword when invoking `slowFunction` in ordert 
 // the rest stays the same
 func main() {
 	println("Invoking slow function")
-	go slowFunction()
+	go slowFunction("1")
 	println("After slow function invocation")
 }
 ```
@@ -556,6 +561,94 @@ The logs inside `slowFunction` don't even show up because the execution of the w
 Which brings us to point `2`: how do we wait for results, and reconcile results of multiple async functions? Go offers two constructs for doing this: **channels** and **mutexes** (crasis of _mutual_ and _execution_).
 
 ### Channels
+
+Consider the following snippet:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"time"
+)
+
+func worker(ctx context.Context, id int, jobs <-chan int, results chan<- int) {
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Printf("Worker %d stopping\n", id)
+			return
+		case job, ok := <-jobs:
+			if !ok {
+				return
+			}
+			fmt.Printf("Worker %d processing job %d\n", id, job)
+			time.Sleep(time.Second)
+			results <- job * 2
+		}
+	}
+}
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
+	channelSize := 10
+	nSimultaneousWorkers := 3
+
+	jobsChannel := make(chan int, channelSize)
+	resultsChannel := make(chan int, channelSize)
+
+	// Start workers
+	for workerIndex := 1; workerIndex <= nSimultaneousWorkers; workerIndex++ {
+		go worker(ctx, workerIndex, jobsChannel, resultsChannel)
+	}
+
+	// Send jobs through jobsChannel
+	go func() {
+		for channelInput := 1; channelInput < channelSize; channelInput++ {
+			jobsChannel <- channelInput
+		}
+		close(jobsChannel)
+	}()
+
+	// Collect results from resultsChannel
+	for i := 1; i < channelSize; i++ {
+		select {
+		case <-ctx.Done():
+			fmt.Println("Timeout reached")
+			return
+		case result := <-resultsChannel:
+			fmt.Printf("Result: %d\n", result)
+		}
+	}
+}
+```
+
+The `worker` function is a more realistic equivalent of the `slowFunction` function from above, equipped with the necessary arguments for leveraging Go channels.
+
+Other than the ID of the job, for mere logging purposes, it accepts the following arguments:
+
+- a `Context` argument, holding the execution context; among other things, the context can hold a timeout timer; by accepting the context as an argument, the `worker` function is aware of when that timer is expired
+- a `jobs` channel, i.e. an _input_ channel through which job IDs are fed to the `worker` function
+- a `results` channel, an _output_ channel through which the `worker` function asynchronously sends results back
+
+The logic of the function itself is an infinite `for` loop (it has no conditions, hence it's infinite) containing a `select` clause, which reminds me a bit of the Java `switch` clause; it handles two cases:
+
+- if the execution context (through the `ctx` argument) signals that the timeout window has closed, then `return` (thus breaking the infinite loop)
+- if the `jobs` channel has a new signal to deliver, then evaluate it:
+    - if the signal marks that the channel has been closed (`ok` is `false`) then `return`
+    - otherwise execute some dummy logic, waiting 1 second and then returning a result through the `results` channel
+
+This construct makes it so that, at every loop, the execution awaits for one of the conditions to verify; as soon as one condition is true, the resulting logic is executed; then, if the loop wasn't broken, a new loop is executed.
+
+In the `main` function, on the other hand, we find the logic for starting and then "feeding" the workers (through the `jobs` channel), and finally extracting the results from the `results` channel:
+
+- first, we define an execution context with a 5 seconds timeout
+- then, we define two channels meant to host elements of the `int` type, both the same size; notice how at this step there is no trace of one being an input channel and the other one being an output channel
+- then we start a number of workers, passing the same context and the same input/output channels to each of them; the only difference between the invocations is the `id` argument; notice how workers are started asynchronously through the `go` keyword - each worker starts in parallel and fires up their infinite `for` loop, which at the first iteration starts waiting for a signal from either the context or the `jobs` channel
+- then 
 
 ### Mutexes
 
