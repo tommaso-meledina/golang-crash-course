@@ -424,6 +424,10 @@ func main() {
 
 Here, the `greeter` interface has been removed; in its stead, the `printWelcome` function uses an inline, anonymous definition. This for underlines a key design difference between Go and Java: in Go, interfaces are discovered bottom-up, not designed top-down. In other words, in Go interfaces are owned by the consumer!
 
+### Deferring
+
+I had forgotten about this!
+
 ### Composition
 
 In Go there is no inheritance. Instead, structures embed other structures; behavior is _composed_, rather than extended/overridden; in other words behavior is additive, not substitutive (no Java `@Override`).
@@ -490,4 +494,74 @@ In this version:
 
 ## Concurrency
 
+Concurrency is one of the areas where Golang really shines. It's native API allows to write elegant yet simple and efficient concurrency logic.
+
+As far as I could understand in this initial analysis of mine, there are two main concerns to this topic:
+
+1. how do we make functions run asynchronously in parallel?
+2. how do we synchronize their completions?
+
+Point `1` is elegantly addressed by _Goroutines_: just prefix a function call with the `go` keyword, and that function will run asynchronously instead of blocking. That's it.
+
+Consider the following snippet:
+
+```go
+package main
+
+import (
+	"time"
+)
+
+func slowFunction() {
+	println("slow function starts")
+	time.Sleep(5 * time.Second)
+	println("slow function ends")
+}
+func main() {
+	println("Invoking slow function")
+	slowFunction()
+	println("After slow function invocation")
+}
+```
+
+Here `slowFunction` is blocking, in fact the output of this script is the following:
+
+```text
+Invoking slow function
+slow function starts
+slow function ends
+After slow function invocation
+```
+
+But we just need to use the `go` keyword when invoking `slowFunction` in ordert o make its execution async:
+
+```go
+// the rest stays the same
+func main() {
+	println("Invoking slow function")
+	go slowFunction()
+	println("After slow function invocation")
+}
+```
+
+New output:
+
+```text
+Invoking slow function
+After slow function invocation
+```
+
+The logs inside `slowFunction` don't even show up because the execution of the whole script ends before `slowFunction` has a chance to execute.
+
+Which brings us to point `2`: how do we wait for results, and reconcile results of multiple async functions? Go offers two constructs for doing this: **channels** and **mutexes** (crasis of _mutual_ and _execution_).
+
+### Channels
+
+### Mutexes
+
 ## Style quirks
+
+TODO:
+
+- inline declarations
+- `=` VS `:=` when instantiating variables
