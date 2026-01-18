@@ -304,9 +304,11 @@ Finally, we pass _a pointer to `x`_ to another function, that modifies its value
 
 Why are pointers back, and how are they used in Go?
 
-As far as I understand, the purpose is to force developers to handle values and references consciously.
+As far as I understand, the purpose is to force developers to consciously decide whether the functions they design are supposed to perform mutations or not.
 
-One instance in which I encountered the usage of pointers is in receivers, i.e. when equipping types with methods. Let's consider the first script we used in this article; in there, we write the following:
+In fact, one instance in which I encountered the usage of pointers is in receivers (see above), i.e. when equipping types with methods.
+
+Let's consider the first script we used in this article; in there, we wrote the following:
 
 ```go
 func (u User) Describe() string {
@@ -323,6 +325,8 @@ func (u *User) Describe() string {
 ```
 
 In this case, the `Describe` function has access to a _pointer_ (the address of the value of the instance)! for this particular implementation it doesn't make much of a difference, but if the implementation included mutations then it would make _a lot_ of difference: using a value receiver (i.e. `(User u)`) would not propagate mutations, using a pointer receiver would!
+
+> **In general, use pointers for methods that are supposed to apply mutations, don't use them otherwise.**
 
 ### Interfaces
 
@@ -427,8 +431,62 @@ In Go there is no inheritance. Instead, structures embed other structures; behav
 Let's introduce composition in the snippet we just used in the [Interfaces](#interfaces) section:
 
 ```go
+package demo
 
+import "fmt"
+
+type englishGreeter struct{}
+
+func (g englishGreeter) greet(name string) string {
+	return "Hello, " + name
+}
+
+type italianGreeter struct{}
+
+func (g italianGreeter) greet(name string) string {
+	return "Ciao, " + name
+}
+
+type prefixer struct {
+	prefix string
+}
+
+func (p prefixer) apply(s string) string {
+	return p.prefix + s
+}
+
+type composedGreeter struct {
+	prefixer
+}
+
+func (g composedGreeter) greet(name string) string {
+	return g.apply(name)
+}
+
+func printWelcome(g interface {
+	greet(string) string
+}, name string) {
+	fmt.Println(g.greet(name))
+}
+
+func InterfacesDemo() {
+	var dummyName string = "John"
+	var greetingPrefixer prefixer = prefixer{prefix: "Salutations, "}
+	//var g = englishGreeter{}
+	//var g = italianGreeter{}
+	var g = composedGreeter{greetingPrefixer}
+
+	printWelcome(g, dummyName)
+}
 ```
+
+In this version:
+
+- we defined a simple `prefixer` structure, holding a `prefix` string property
+- we equipped it with an `apply` method (it applies the `prefix` property to an input string)
+- we defined `composedGreeter`, a new candidate  implementation of the (implicit) `greeter` interface; notice how we defined it as composed with the `prefixer` structure
+- we equipped the `composedGreeter` structure with the `greet` method expected by the `greeter` interface
+- finally, in the `main` function, we executed the new `composedGreeter` rather than the "old" `englishGreeter` or `italianGreeter` options - notice how the `printWelcome` function doesn't care one bit, that's what we mean when we say that the purpose of interfaces is to decouple consumers from specific implementations
 
 ## Concurrency
 
