@@ -651,7 +651,135 @@ In the `main` function, on the other hand, we find the logic for starting and th
 - Then we send actual tasks to be completed (jobs) to the workers we started; the key command doing this is `jobsChannel <- channelInput` which pipes the `channelInput` value in the `jobsChannel` channel; the command is repeated (through a `for` loop) until the channel is full; finally the channel is closed. Notice how the loop is wrapped inside an anonymous function, decorated with the `go` keyword: that's defensive programming! In our case it's not strictly necessary, because the `for` loop feeding jobs to the `jobsChannel` channel consciously stops once it reaches the size of the channel, but if that wasn't the case and we didn't use the `go` keyword then the code would block at `jobsChannel <- channelInput`, waiting for some space to be freed up in the channel.
 - Finally, using a similar pattern to the one we adopted in the `worker` function, we run a `for` loop coupled with a `select` clause that either breaks the loop when the context timeout expires or fetches results from the `resultsChannel` channel.
 
-### Mutexes
+### Mutexes and WaitGroups
+
+A **Mutex** (mutual exclusion lock) is a synchronization primitive that protects shared data from concurrent access by allowing only one goroutine to access the data at a time.
+
+```go
+import "sync"
+
+var mu sync.Mutex
+
+mu.Lock()    // Acquire the lock (blocks if already locked)
+// Critical section - only one goroutine can be here
+mu.Unlock()  // Release the lock
+```
+
+**Explanation:**
+
+- `Lock()` - Goroutine acquires exclusive access (waits if another goroutine holds the lock)
+- the "Critical section" is where "protected" code executes
+- `Unlock()` - Releases the lock so other goroutines can acquire it
+
+Without mutex, code that updates the same state becomes unpredictable:
+
+```go
+// Race condition - multiple goroutines modify counter simultaneously
+var counter int
+go func() { counter++ }()  // Goroutine 1
+go func() { counter++ }()  // Goroutine 2
+// Final value is unpredictable
+```
+
+With mutex, goroutines behavior is synchronized:
+
+```go
+var counter int
+var mu sync.Mutex
+go func() { mu.Lock(); counter++; mu.Unlock() }()
+go func() { mu.Lock(); counter++; mu.Unlock() }()
+// Final value is always correct
+```
+
+Notice how `mu` doesn't lock a value or anything specific, it's a "gate": when execution passes through a `Lock()`/`Unlock()` block, it knows that only one goroutine can pass through there at a time.
+
+A **WaitGroup** is a synchronization primitive that waits for a collection of goroutines to finish. It's a counter that blocks until it reaches zero.
+
+Let's update the example we used for [Channels](#channels) into an example about Mutexes and WaitGroups:
+
+```go
+package main
+
+import (
+	"context"
+	"fmt"
+	"sync"
+	"time"
+)
+
+type Counter struct {
+	mu    sync.Mutex
+	value int
+}
+
+func (c *Counter) Increment() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.value++
+}
+
+func (c *Counter) Get() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.value
+}
+
+func worker(ctx context.Context, id int, counter *Counter, wg *sync.WaitGroup, nIterations int) {
+	defer wg.Done()
+
+	for i := 0; i < nIterations; i++ {
+		select {
+		case <-ctx.Done():
+			fmt.Printf("Worker %d stopping\n", id)
+			return
+		default:
+			fmt.Printf("Worker %d incrementing counter\n", id)
+			counter.Increment()
+			time.Sleep(500 * time.Millisecond)
+		}
+	}
+}
+
+func main() {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	counter := &Counter{}
+	var wg sync.WaitGroup
+
+	var nWorkers int = 3
+    var nIterations int = 4
+
+	// Start 3 workers
+	for w := 1; w <= nWorkers; w++ {
+		wg.Add(1)
+		go worker(ctx, w, counter, &wg)
+	}
+
+	// Wait for all workers to complete
+	wg.Wait()
+
+	fmt.Printf("Final counter value: %d\n", counter.Get())
+}
+```
+
+Here, we:
+
+- define a `Counter` structure, holding the value we want to update and the Mutex to protect it (encapsulating the Mutex with the data is idiomatic in Golang!)
+- equip the `Counter` structure with an `Increment` method, incrementing the value of the counter, and a `Get` method retrieving it
+- define a `worker` function, which accepts an ID and a context (like we did for Channels), but instead of input/output channels it accepts _a pointer_ to a `Counter` (we want to update it, hence we can't just pass the value) and a pointer to a `WaitGroup`; the function also accepts an additional `int` value limiting the number of iterations that a single worker should go through
+- in the `main` function, after initializing the variables we need, we start our workers; notice how each time we start a worker we also invoke `wg.Add(1)`, which extends the size of the `WaitGroup` by 1
+- after starting the workers, through the `wg.Wait()` command we wait until the `WaitGroup` sends the `Done()` signal for all workers; for each worker, this can happen either because the timeout is reached (see the first case in the `select` clause within the `worker` function) or because the worker has completed tha target amount of iterations (and therefore the deferred command `wg.Done()` is fired)
+
+### Channel or Mutex?
+
+Mutex provides memory synchronization through locking, while channels provide synchronization through communication.
+
+Regarding synchronization, Go's philosophy is
+
+> "Don't communicate by sharing memory; share memory by communicating"
+
+Hence **Channels** are to be preferred when possible, while **Mutexes** shall be used when there is a need to protect shared state.
 
 ## Style quirks
 
