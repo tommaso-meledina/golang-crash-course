@@ -783,7 +783,58 @@ Hence **Channels** are to be preferred when possible, while **Mutexes** shall be
 
 ## Style quirks
 
-TODO:
+### Variable declations
 
-- inline declarations
-- `=` VS `:=` when instantiating variables
+There are two ways variables can be declared in Go:
+
+1. **Short declaration** `:=`
+
+```go
+name := "Alice"        // Type inferred as string
+count := 42            // Type inferred as int
+result := doWork()     // Type inferred from return value
+```
+
+- Only inside functions (not at package level)
+- Declares _and_ assigns in one step
+- Type is inferred from the right-hand side
+
+
+2. **Explicit declaration**
+
+```go
+var name string                    // Declared, zero value ("")
+var count int = 42                 // Declared with explicit type and value
+var result = doWork()              // Type inferred
+var x, y, z int                    // Multiple variables, same type
+var (                              // Block declaration
+    name   string
+    count  int
+    active bool
+)
+```
+
+- Can be used inside or outside functions (package level)
+- Can declare without initializing (gets [zero value](https://go.dev/tour/basics/12))
+- Can explicitly specify type
+
+Those ways shall not be confused with **Assignment/Reassignment** `=` i.e.
+
+```go
+var name string
+name = "Alice"         // Assignment, variable already exists
+
+count := 10
+count = 20             // Reassignment
+```
+
+- Variable must be already declared
+- Just assigns a value, doesn't create a new variable
+
+**Short declarations** are also used for creating anonymous/inline variables e.g.
+
+```go
+for j := 1; j < 10; j++ {
+		fmt.Printf("Executing loop number %d\n", j)
+	}
+```
