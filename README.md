@@ -14,7 +14,7 @@ This repository hosts the notes and snippets I wrote while familiarizing with Go
 
 ## Abstract
 
-Compared to Java, Go feels more "essential". Its coding patterns are more direct; simpler, in a way. It deliberately lacks the complexity that allows a Java developer to represent a rich domain model through hierarchically-organized classes, exchanging it for coding patterns that aim to make every snippet make sense, often even if read in isolation. Its coding style feels a bit like that of a scripting language - which we may argue that Go is, at heart.
+Compared to Java, Go feels more "essential". Its coding patterns are more direct - simpler, in a way. It deliberately lacks the complexity that allows a Java developer to represent a rich domain model through hierarchically-organized classes, exchanging it for coding patterns that aim to make every snippet make sense, often even if read in isolation. Its coding style feels a bit like that of a scripting language - which one might argue that Go is, at heart.
 
 While some of the most acclaimed features in Java development come from external libraries, and the presence of a myriad of alternative third-party options and tools is considered among the strengths of the Java ecosystem, Go is tightly self-complete and self-consistent: installing the Go runtime also brings the full set of tools and libraries that developers need in order to ship features, including: testing tools, performance testing tools, formatting/styling tools, HTTP libraries, filesystem libraries and many more, most notably the top-notch libraries supporting concurrency. A select few external libraries are commonly used, but the amount of external dependencies involved is orders of magnitude less than what I'm used to in Java.
 
@@ -57,7 +57,7 @@ myproject/
 
 ### Other conventions
 
-In addition to the simplified project structure presented in the past section, Go also has a handful of additional conventions.
+In addition to the simplified project structure presented in the previous section, Go also has a handful of additional conventions.
 
 `internal/` directory: code in `internal/` can only be imported by code in the parent tree; it enforces true privacy beyond package-level visibility.
 
@@ -86,9 +86,7 @@ myproject/
   │       └── main.go           (builds "worker" binary)
 ```
 
-`vendor/` directory: stores copies of dependencies (created by `go mod vendor`); Go tools recognize it automatically.
-
-`testdata`: for text fixtures; ignored by `go build`, used for test data files.
+`testdata`: for text fixtures; ignored by all `go` commands (most notably `go build`); used for test data files.
 
 ### Capitalization and visibility
 
@@ -122,7 +120,7 @@ As I mentioned in the [abstract](#abstract), the Go runtime comes with a full se
 
 First of all, the `go` CLI completely covers all needs in terms of package management.
 
-In fact, the usual `build`, `install`, `test`, `run` commands, plus the commands for listing and fetching external modules (for which I'm used to rely on a third-party pakcage manager such as Maven or Gradle) are standard features of the `go` CLI:
+The usual `build`, `install`, `test`, `run` commands, plus the commands for listing and fetching external modules (for which I'm used to rely on a third-party pakcage manager such as Maven or Gradle) are standard features of the `go` CLI:
 
 - `go build` - Compiles packages and dependencies into executable binaries
 - `go clean` - Removes build artifacts and cached files
@@ -133,6 +131,11 @@ In fact, the usual `build`, `install`, `test`, `run` commands, plus the commands
 - `go mod` - Manages module dependencies (init, tidy, download, vendor, etc.)
 - `go run` - Compiles and runs Go programs in one step (useful for development)
 - `go test` - Runs tests and benchmarks for packages
+
+### Additional `mod` tools
+
+- `go mod init` - Initializes a new module
+- `go mod tidy` - Cleans up unused dependencies
 
 ### Additional testing tools
 
@@ -149,6 +152,7 @@ Finally, the Go CLI features built-in code quality tools; most notably a standar
 - `go fmt` - Automatically formats Go code to the official style standard
 - `go vet` - Examines code for common mistakes and suspicious constructs
 - `go fix` - Updates code to use new APIs after Go version upgrades
+- `go doc` - Generates and displays code documentation
 
 ## Coding patterns
 
@@ -213,7 +217,7 @@ Notice the syntax of function `func (u User) Describe() string`, it means:
 - this function can be referenced outside its package (it's named `Describe` with a capital `D`)
 - this function doesn't expect any input, since the input bit is empty `Describe()`
 - this function returns a value of type `string` - keep in mind that functions in Go may return more than one value, e.g. we could have `Describe() (string, int)`
-- this function is a method os the `User` type (the `(u User)` bit is called "receiver")
+- this function is a method of the `User` type (the `(u User)` bit is called "receiver")
 
 The above snippet, other than demonstrating the fundamental concepts I listed, is actually a working Go script: running the `go run` command on it will output `John(Johnny for friends)`.
 
@@ -325,7 +329,7 @@ func (u *User) Describe() string {
 }
 ```
 
-In this case, the `Describe` function has access to a _pointer_ (the address of the value of the instance)! for this particular implementation it doesn't make much of a difference, but if the implementation included mutations then it would make _a lot_ of difference: using a value receiver (i.e. `(User u)`) would not propagate mutations, using a pointer receiver would!
+In this case, the `Describe` function has access to a _pointer_ (the address of the value of the instance)! for this particular implementation it doesn't make much of a difference, but if the implementation included mutations then it would make _a lot_ of difference: using a value receiver (i.e. `(u User)`) would not propagate mutations, using a pointer receiver would!
 
 > **In general, use pointers for methods that are supposed to apply mutations, don't use them otherwise.**
 
@@ -383,12 +387,12 @@ func main() {
 
 - The `greeter` interface describes the expected _behavior_: concrete types shall implement a `greet` method accepting a `string` and returning a `string`.
 - The `printWelcome` function accepts any concrete type implementing the `greeter` interface, it "does not know" which implementation it will work with.
-- The `englishGreeter` and `italianGreeter` functions both implement the `greeter` interface (by defining a suitable `greet` method).
+- The `englishGreeter` and `italianGreeter` structures both implement the `greeter` interface (by defining a suitable `greet` method).
 - The `main` function can invoke the `printWelcome` function using either the `englishGreeter` or the `italianGreeter` implementation interchangeably.
 
 There are two things to highlight here:
 
-1. The `englishGreeter` and `italianGreeter` functions implement the `greeter` interface _**implicitly**_: there is no keyword or explicit reference indicating that they implement it; they implement it by adhering to its contract.
+1. The `englishGreeter` and `italianGreeter` structures implement the `greeter` interface _**implicitly**_: there is no keyword or explicit reference indicating that they implement it; they implement it by adhering to its contract.
 2. The `greeter` interface is actually useless here, and introduced for educational purposes; a more idiomatic form would be the following:
 
 ```go
@@ -612,7 +616,7 @@ After slow function invocation
 
 The logs inside `slowFunction` don't even show up because the execution of the whole script ends before `slowFunction` has a chance to execute.
 
-Which brings us to point `2`: how do we wait for results, and reconcile results of multiple async functions? To my knowledge, Go offers two constructs for doing this: **channels** and **mutexes** (crasis of _mutual_ and _execution_).
+Which brings us to point `2`: how do we wait for results, and reconcile results of multiple async functions? To my knowledge, Go offers two constructs for doing this: **channels** and **mutexes** (blend of _mutual_ and _execution_).
 
 ### Channels
 
@@ -735,7 +739,7 @@ go func() { counter++ }()  // Goroutine 2
 // Final value is unpredictable
 ```
 
-With mutex, goroutines behavior is synchronized:
+With mutex, goroutines' behavior is synchronized:
 
 ```go
 var counter int
@@ -807,7 +811,7 @@ func main() {
 	// Start 3 workers
 	for w := 1; w <= nWorkers; w++ {
 		wg.Add(1)
-		go worker(ctx, w, counter, &wg)
+		go worker(ctx, w, counter, &wg, nIterations)
 	}
 
 	// Wait for all workers to complete
@@ -955,13 +959,30 @@ func TestGetUsers(t *testing.T) {
 }
 ```
 
-For complex interfaces, code generators like `mockgen` (`gomock`) for mocks generation _do_ exist.
+For complex interfaces, code generators like `mockgen` (`gomock`) for mocks generation _do_ exist. For example, the standard library's `httptest` package provides excellent utilities for mocking HTTP servers.
 
 Notice how clean coding standards (using interfaces for decoupling consumers from specific implementations of interfaces) make Go code easily testable.
 
+### Parallel tests
+
+### Parallel tests
+
+Mark tests to run in parallel with `t.Parallel()`:
+
+```go
+func TestSomething(t *testing.T) {
+    t.Parallel()  // This test runs in parallel with other parallel tests
+    // test code...
+}
+```
+
+Parallel tests run concurrently, speeding up test suites. By default, Go runs up to `GOMAXPROCS` tests in parallel. Control this with `go test -parallel N`.
+
+Use `t.Parallel()` within subtests created by `t.Run()` to parallelize individual test cases in table-driven tests.
+
 ## Style quirks
 
-### Variable declations
+### Variable declarations
 
 There are two ways variables can be declared in Go:
 
@@ -996,7 +1017,7 @@ var (                              // Block declaration
 - Can declare without initializing (gets [zero value](https://go.dev/tour/basics/12))
 - Can explicitly specify type
 
-Those ways shall not be confused with **Assignment/Reassignment** `=` i.e.
+Those ways should not be confused with **Assignment/Reassignment** `=` i.e.
 
 ```go
 var name string
