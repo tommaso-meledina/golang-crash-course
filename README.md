@@ -426,7 +426,37 @@ Here, the `greeter` interface has been removed; in its stead, the `printWelcome`
 
 ### Deferring
 
-I had forgotten about this!
+In Go, `defer` schedules a function call to execute after the surrounding function returns. This is commonly used for cleanup, like closing files.
+
+Consider the following snippet:
+
+```go
+package main
+
+import (
+	"fmt"
+	"os"
+)
+
+func main() {
+	file, err := os.Open("data.txt")
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+	defer file.Close()  // Runs when main() exits, even if error occurs
+	
+	data := make([]byte, 100)
+	file.Read(data)
+	fmt.Println(string(data))
+	
+	// file.Close() automatically called here
+}
+```
+
+So `defer` is like a Java `finally`, except I can invoke it pretty much wherever I want inside the function - specifically, I can (and **_strongly should_**) invoke it right after requesting the resource I have opened/requested. It's a way to make it easier to remember to clean up after our code!
+
+Note that multiple defers execute in reverse order (last-in, first-out).
 
 ### Composition
 
