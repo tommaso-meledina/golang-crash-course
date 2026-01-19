@@ -494,7 +494,30 @@ In this version:
 
 ### Error handling
 
-Can't ignore this either!
+In Golang, errors are values. There is no exception handling, no `try`/`catch`; functions that could encounter an error simply list it among their returned values:
+
+```go
+func divide(numerator int, denominator int) (float64, error) {
+    if denominator == 0 {
+        return 0, fmt.Error("Cannot divide by zero")
+    }
+    else return numerator/denominator, nil
+}
+```
+
+Callers are coded accordingly:
+
+```go
+// ...
+result, err := divide(a, b)
+
+if err != nil {
+    fmt.Printf("Could not perform operation: %w\n", err)
+}
+else {
+    fmt.Printf("%d/%d=%d", a, b, result)
+}
+```
 
 ## Concurrency
 
