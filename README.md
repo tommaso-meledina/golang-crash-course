@@ -9,6 +9,7 @@ This repository hosts the notes and snippets I wrote while familiarizing with Go
 - [Features](#features)
 - [Coding patterns](#coding-patterns)
 - [Concurrency](#concurrency)
+- [Testing](#testing)
 - [Style quirks](#style-quirks)
 
 ## Abstract
@@ -833,6 +834,130 @@ Regarding synchronization, Go's philosophy is
 > "Don't communicate by sharing memory; share memory by communicating"
 
 Hence **Channels** are to be preferred when possible, while **Mutexes** shall be used when there is a need to protect shared state.
+
+## Testing
+
+### Writing and running tests
+
+Tests live in `_test.go` files alongside the code they test. Test functions must start with `Test` and accept a `*testing.T` argument:
+
+```go
+package mypackage
+
+import "testing"
+
+func TestAdd(t *testing.T) {
+    result := Add(2, 3)
+    if result != 5 {
+        t.Errorf("Add(2, 3) = %d; want 5", result)
+    }
+}
+```
+
+Run tests with `go test` (current package), `go test ./...` (all packages), or `go test -v` (verbose).
+
+### Table-Driven tests
+
+**Table-driven tests** are the idiomatic Go pattern for testing multiple cases:
+
+```go
+func TestAdd(t *testing.T) {
+    tests := []struct {
+        name     string
+        a, b     int
+        expected int
+    }{
+        {"positive", 2, 3, 5},
+        {"negative", -1, -1, -2},
+        {"zero", 0, 0, 0},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            if result := Add(tt.a, tt.b); result != tt.expected {
+                t.Errorf("got %d, want %d", result, tt.expected)
+            }
+        })
+    }
+}
+```
+
+### Key Testing Functions
+
+- `t.Error()` / `t.Errorf()` - Report failure, continue test
+- `t.Fatal()` / `t.Fatalf()` - Report failure, stop immediately
+- `t.Run()` - Create subtests
+- `t.Skip()` - Skip test conditionally
+
+### Benchmarks
+
+Benchmark functions start with `Benchmark` and accept a `*testing.B` argument:
+```go
+func BenchmarkAdd(b *testing.B) {
+    for i := 0; i < b.N; i++ {
+        Add(2, 3)
+    }
+}
+```
+
+Benchmark tests can be run with `go test -bench=.`
+
+### Mocking
+
+Go uses interfaces for mocking rather than "framework magic" (e.g. Mockito for Java). Define an interface for dependencies, then provide different implementations for production vs. testing:
+
+```go
+type UserAPI interface {
+    FetchUsers() ([]User, error)
+}
+
+func GetUsers(api UserAPI) ([]User, error) {
+    return api.FetchUsers()
+}
+```
+
+```go
+// Production implementation
+type RealUserAPI struct {
+    BaseURL string
+}
+
+func (r *RealUserAPI) FetchUsers() ([]User, error) {
+    // Actual HTTP call
+}
+```
+
+```go
+// Test mock implementation
+type MockUserAPI struct {
+    Users []User
+    Err   error
+}
+
+func (m *MockUserAPI) FetchUsers() ([]User, error) {
+    return m.Users, m.Err
+}
+
+// actual unit test
+func TestGetUsers(t *testing.T) {
+    mock := &MockUserAPI{
+        Users: []User{{ID: 1, Name: "Alice"}},
+    }
+    
+    users, err := GetUsers(mock)
+    
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if len(users) != 1 {
+        t.Errorf("expected 1 user, got %d", len(users))
+    }
+}
+```
+
+For complex interfaces, code generators like `mockgen` (`gomock`) for mocks generation _do_ exist.
+
+Notice how clean coding standards (using interfaces for decoupling consumers from specific implementations of interfaces) make Go code easily testable.
 
 ## Style quirks
 
