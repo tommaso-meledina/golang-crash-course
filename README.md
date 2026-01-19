@@ -87,7 +87,7 @@ myproject/
 
 `vendor/` directory: stores copies of dependencies (created by `go mod vendor`); Go tools recognize it automatically.
 
-`testdata`: for text fixtures; ignored by go build, used for test data files.
+`testdata`: for text fixtures; ignored by `go build`, used for test data files.
 
 ### Capitalization and visibility
 
@@ -115,7 +115,7 @@ type Calculator struct {
 
 ## Features
 
-As I mentioned in the [abstract](#abstract), the Go runtime comes with a full set of standard tools that allow a complete developmente experience right off the bat, with little need of external dependencies.
+As I mentioned in the [abstract](#abstract), the Go runtime comes with a full set of standard tools that allow a complete development experience right off the bat, with little need for external dependencies.
 
 ### Package management
 
@@ -155,7 +155,7 @@ Let's get to the fun part: how do we actually code in Go?
 
 ### Fundamentals
 
-The main syntax elements I encountered are variables (`var`), functions (`func`), types (`type`), structures (`struct`) and interfaces (`interface`).
+The main syntax elements I encountered are variables (`var`), functions (`func`), types (`type`), structures (`struct`) and interfaces (`interface`). There definitely _are_ more elements, but these are the basics.
 
 **Variables** and **functions** are quite self-explanatory (although there's a couple of syntax tricks that are worth specifying later in this section).
 
@@ -498,7 +498,7 @@ Can't ignore this either!
 
 ## Concurrency
 
-Concurrency is one of the areas where Golang really shines. It's native API allows to write elegant yet simple and efficient concurrency logic.
+Concurrency is one of the areas where Golang really shines. Its native API allows to write elegant yet simple and efficient concurrency logic.
 
 As far as I could understand in this initial analysis of mine, there are two main concerns to this topic:
 
@@ -538,7 +538,7 @@ slow function 1 ends
 After slow function invocation
 ```
 
-But we just need to use the `go` keyword when invoking `slowFunction` in ordert o make its execution async:
+But just use the `go` keyword when invoking `slowFunction`, and its execution becomes async:
 
 ```go
 // the rest stays the same
@@ -558,7 +558,7 @@ After slow function invocation
 
 The logs inside `slowFunction` don't even show up because the execution of the whole script ends before `slowFunction` has a chance to execute.
 
-Which brings us to point `2`: how do we wait for results, and reconcile results of multiple async functions? Go offers two constructs for doing this: **channels** and **mutexes** (crasis of _mutual_ and _execution_).
+Which brings us to point `2`: how do we wait for results, and reconcile results of multiple async functions? To my knowledge, Go offers two constructs for doing this: **channels** and **mutexes** (crasis of _mutual_ and _execution_).
 
 ### Channels
 
@@ -628,7 +628,7 @@ func main() {
 
 The `worker` function is a more realistic equivalent of the `slowFunction` function from above, equipped with the necessary arguments for leveraging Go channels.
 
-Other than the ID of the job, for mere logging purposes, it accepts the following arguments:
+Other than the ID of the job, exchanged for mere logging purposes, it accepts the following arguments:
 
 - a `Context` argument, holding the execution context; among other things, the context can hold a timeout timer; by accepting the context as an argument, the `worker` function is aware of when that timer is expired
 - a `jobs` channel, i.e. an _input_ channel through which job IDs are fed to the `worker` function
@@ -639,16 +639,17 @@ The logic of the function itself is an infinite `for` loop (it has no conditions
 - if the execution context (through the `ctx` argument) signals that the timeout window has closed, then `return` (thus breaking the infinite loop)
 - if the `jobs` channel has a new signal to deliver, then evaluate it:
     - if the signal marks that the channel has been closed (`ok` is `false`) then `return`
-    - otherwise execute some dummy logic, waiting 1 second and then returning a result through the `results` channel
+    - otherwise execute the actual business logic that this async function is supposed to run (in this example it's just some dummy logic that waits 1 second) and then return the result through the `results` channel
 
 This construct makes it so that, at every loop, the execution awaits for one of the conditions to verify; as soon as one condition is true, the resulting logic is executed; then, if the loop wasn't broken, a new loop is executed.
 
-In the `main` function, on the other hand, we find the logic for starting and then "feeding" the workers (through the `jobs` channel), and finally extracting the results from the `results` channel:
+In the `main` function, on the other hand, we find the logic for starting and then "feeding" the workers (through the `jobs` channel), and finally extracting the results from the `results` channel.
 
-- first, we define an execution context with a 5 seconds timeout
-- then, we define two channels meant to host elements of the `int` type, both the same size; notice how at this step there is no trace of one being an input channel and the other one being an output channel
-- then we start a number of workers, passing the same context and the same input/output channels to each of them; the only difference between the invocations is the `id` argument; notice how workers are started asynchronously through the `go` keyword - each worker starts in parallel and fires up their infinite `for` loop, which at the first iteration starts waiting for a signal from either the context or the `jobs` channel
-- then 
+- First, we define an execution context with a 5 seconds timeout: whatever our workers will try to do, it will have to happen in a 5 seconds window; after that, the context will send the `Done` signal.
+- Then, we define two channels, meant to host elements of type `int`, both the same size; notice how at this step there is no trace of one being an input channel and the other one being an output channel - if not in their names.
+- Then we start a number of workers, passing the same context and the same input/output channels to each of them; the only difference between the invocations is the `id` argument; notice how workers are started asynchronously through the `go` keyword - each worker starts in parallel and fires up their infinite `for` loop, which at the first iteration starts waiting for a signal from either the context or the `jobs` channel.
+- Then we send actual tasks to be completed (jobs) to the workers we started; the key command doing this is `jobsChannel <- channelInput` which pipes the `channelInput` value in the `jobsChannel` channel; the command is repeated (through a `for` loop) until the channel is full; finally the channel is closed. Notice how the loop is wrapped inside an anonymous function, decorated with the `go` keyword: that's defensive programming! In our case it's not strictly necessary, because the `for` loop feeding jobs to the `jobsChannel` channel consciously stops once it reaches the size of the channel, but if that wasn't the case and we didn't use the `go` keyword then the code would block at `jobsChannel <- channelInput`, waiting for some space to be freed up in the channel.
+- Finally, using a similar pattern to the one we adopted in the `worker` function, we run a `for` loop coupled with a `select` clause that either breaks the loop when the context timeout expires or fetches results from the `resultsChannel` channel.
 
 ### Mutexes
 
